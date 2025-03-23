@@ -1,0 +1,6 @@
+@Terinla_HostAddress = http://localhost:5172
+
+GET {{Terinla_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
