@@ -35,12 +35,7 @@ app.UseHttpsRedirection();
 
 
 
-var books = new List<Book>{
-    new Book{Id = 1, Title = "the queen of persia", CurrentHolder = null, WaitList = new List<User>()},
-    new Book{Id = 2, Title = "the golden crown", CurrentHolder = null, WaitList = new List<User>()},
-    new Book{Id = 3, Title = "the secret of the golden crown", CurrentHolder = null, WaitList = new List<User>()},
-    new Book{Id = 4, Title = "the secret of the pirate", CurrentHolder = null, WaitList = new List<User>()},
-};
+
 var users = new List<User>{
     new User{Id = 1, Name = "shmuli", Email = "user1@localhost"},
     new User{Id = 2, Name = "david", Email = "user2@localhost"},
@@ -52,21 +47,27 @@ var users = new List<User>{
 
 app.MapGet("/books", () => {
     Console.WriteLine("Get books");
-    return books;
+    return Book.instances;
 });
 
 app.MapGet("/books/{id}", (int id) => {
     Console.WriteLine("Get book by id");
-    return books.FirstOrDefault(b => b.Id == id);
+    return Book.instances.FirstOrDefault(b => b.Id == id);
 });
 
 
-    
+
+app.MapGet("/books/category/{category}", (string category) => {
+    return Book.instances.Where(b => b.Category == category);
+});
+
+
+
 
 
 app.MapGet("/books/borrow/{id}/{userId}", (int id, int userId) => {
     var user = users.FirstOrDefault(u => u.Id == userId);
-    var book = books.FirstOrDefault(b => b.Id == id);
+    var book = Book.instances.FirstOrDefault(b => b.Id == id);
     if (book == null || user == null) {
         return Results.NotFound();
     }
@@ -87,7 +88,7 @@ app.MapGet("/books/borrow/{id}/{userId}", (int id, int userId) => {
 
 app.MapGet("/books/hopOnWaitList/{id}/{userId}", (int id, int userId) => {
     var user = users.FirstOrDefault(u => u.Id == userId);
-    var book = books.FirstOrDefault(b => b.Id == id);
+    var book = Book.instances.FirstOrDefault(b => b.Id == id);
     if (book == null || user == null) {
         return Results.NotFound();
     }
@@ -106,7 +107,7 @@ app.MapGet("/books/hopOnWaitList/{id}/{userId}", (int id, int userId) => {
 
 app.MapGet("/books/return/{id}/{userId}", (int id, int userId) => {
     var user = users.FirstOrDefault(u => u.Id == userId);
-    var book = books.FirstOrDefault(b => b.Id == id);
+    var book = Book.instances.FirstOrDefault(b => b.Id == id);
     if (book == null || user == null) {
         return Results.NotFound();
     }
@@ -117,7 +118,7 @@ app.MapGet("/books/return/{id}/{userId}", (int id, int userId) => {
     if (book.WaitList.Count > 0) {
         var nextUser = book.WaitList[0];
         book.LastBorrow = DateTime.Now;
-        EmailNotification.instances.Add(new Email{
+        EmailNotification.instances.Add(new EmailNotification{
             To = nextUser.Email,
             Subject = "Your book is ready!",
             Body = "The book you reserved is ready for you to borrow. Please come by to pick it up."
@@ -128,6 +129,11 @@ app.MapGet("/books/return/{id}/{userId}", (int id, int userId) => {
 });
 
 
+app.MapGet("/books/category/{category}", (string category) => {
+    return Book.instances.Where(b => b.Category == category);
+});
+
+
 app.MapGet("/emails", () => {
     return EmailNotification.instances;
 });
@@ -135,7 +141,6 @@ app.MapGet("/emails", () => {
 app.MapGet("/emails/{userId}", (int userId) => {
     return EmailNotification.instances;
 });
-
 
 
 
@@ -161,18 +166,53 @@ class User
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+
 }
+
+
+
+
+
 
 class Book
 {
-    public int Id { get; set; }
+    //so that way new categories we'll get a `New` tag 
+    public static List<(string category, DateTime creationDate, List<User> subscribers)> categories = new List<(string category, DateTime creationDate, List<User> subscribers)>();
+    public static List<Book> instances = new List<Book>();  
+    public int Id { get; set; } = 0;
     public string Title { get; set; } = string.Empty;
     public User? CurrentHolder { get; set; }
     public List<User> WaitList { get; set; } = new List<User>();
     public DateTime LastBorrow { get; set; } = DateTime.Now;
-    // public string Author { get; set; }
+    public string Category { get; set; } = string.Empty;
     public int daySinceLastBorrow() {
         return (int)(DateTime.Now - LastBorrow).TotalDays;
+    }
+    public Book()
+    {
+        Id = Book.instances.Count;
+        if (!Book.categories.Any(c => c.category == Category))
+        {
+            Book.categories.Add((Category, DateTime.Now));
+        } else {
+            Book.categories.FirstOrDefault(c => c.category == Category).subscribers.ForEach(subscriber => EmailNotification.instances.Add(new EmailNotification{
+                To = subscriber.Email,
+                Subject = "New Book Added",
+                Body = $"'{Title}' in the {Category} category has been added to the library!!!"
+            }));
+        }
+    }
+
+    static Book() {
+        Console.WriteLine("Initializing books class");
+     Book.instances = new List<Book>{
+        new Book{Title = "the queen of persia", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
+        new Book{Title = "the golden crown", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
+        new Book{Title = "the secret of the golden crown", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
+        new Book{Title = "the secret of the pirate", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
+        new Book{Title = "the lost treasure", CurrentHolder = null, WaitList = new List<User>(), Category = "adventure"},
+    };
+   
     }
 }
 
