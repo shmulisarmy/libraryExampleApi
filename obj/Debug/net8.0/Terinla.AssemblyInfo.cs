@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Terinla")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e06e3e305f55e7d5af768636458d3c074d64c6fd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b4015e933eeb8a3f382b24d151f89d9253b8f5da")]
 [assembly: System.Reflection.AssemblyProductAttribute("Terinla")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Terinla")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

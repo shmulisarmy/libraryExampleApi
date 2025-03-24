@@ -1,5 +1,12 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System;
 using System.Threading;
+using SQLite;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.Extensions.Logging;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,18 +28,15 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
 
 
 
 
 
-
-
-
-
-
-
+var connection_string = "main.db";
+var db = new SQLiteConnection(connection_string);
 
 
 
@@ -42,35 +46,67 @@ var users = new List<User>{
     new User{Id = 3, Name = "charlie", Email = "user3@localhost"},
 };
 
-
+db.CreateTable<User>();
 
 
 app.MapGet("/books", () => {
-    Console.WriteLine("Get books");
-    return Book.instances;
+    return db.Query<Book>("select * from book");
 });
 
-app.MapGet("/books/{id}", (int id) => {
-    Console.WriteLine("Get book by id");
-    return Book.instances.FirstOrDefault(b => b.Id == id);
+app.MapGet("/tester", (HttpContext context) => {
+    context.Request.Cookies.TryGetValue("name", out string? name);
+    Console.WriteLine(name);
+    return Results.Ok(name);
+}); 
+
+
+
+
+app.MapGet("/setName/{name}", (HttpContext context, string name) => {
+    
+    // Set the cookie using the context's response
+
+    context.Response.Cookies.Append("name", name, new CookieOptions 
+    {
+        Path = "/",
+        HttpOnly = true,
+        SameSite = SameSiteMode.Strict
+    });
+
+    return Results.Ok(new { Message = "Cookie Set" });
+});
+
+
+app.MapGet("/Book/create/{title}/{category}", (string title, string category) => {
+    var newBook = new Book{Title=title, Category=category};
+    db.Insert(newBook);
+    return newBook;
+});
+
+app.MapGet("/books/{id}", (int Id) => {
+    var book = db.Query<Book>("select * from Book where id = ?", Id);
+    var books = db.Query<Book>("select * from Book join User on Book.CurrentHolderId = User.Id");
+    return book;
 });
 
 
 
 app.MapGet("/books/category/{category}", (string category) => {
-    return Book.instances.Where(b => b.Category == category);
+    return db.Query<Book>("select * from Book where category = ?", category);
 });
 
 
+Action<string> print = Console.WriteLine;
 
 
 
 app.MapGet("/books/borrow/{id}/{userId}", (int id, int userId) => {
-    var user = users.FirstOrDefault(u => u.Id == userId);
-    var book = Book.instances.FirstOrDefault(b => b.Id == id);
+    var book = db.Query<Book>("select * from Book")[0];
+    var user = db.Query<User>("select * from User")[0];
     if (book == null || user == null) {
         return Results.NotFound();
     }
+    
     if (book.CurrentHolder != null) {
         return Results.BadRequest("Book is already borrowed, you wanna join the waitlist?");
     }
@@ -81,6 +117,7 @@ app.MapGet("/books/borrow/{id}/{userId}", (int id, int userId) => {
         return Results.BadRequest($"the book will go to the first user on the waitlist, unless it's not picked up by {book.LastBorrow}");
     }
     book.CurrentHolder = user;
+    db.Update(book);
     return Results.Ok(book);
 });
 
@@ -129,9 +166,14 @@ app.MapGet("/books/return/{id}/{userId}", (int id, int userId) => {
 });
 
 
-app.MapGet("/books/category/{category}", (string category) => {
-    return Book.instances.Where(b => b.Category == category);
+
+
+app.MapGet("/BookComment/create/{UserId}/{BookId}/{Comment}", (int UserId, int BookId, string Comment) => {
+    var newBookComment = new BookComment{UserId=UserId, BookId=BookId, Comment=Comment};
+    db.Insert(newBookComment);
+    return newBookComment;
 });
+
 
 
 app.MapGet("/emails", () => {
@@ -142,13 +184,43 @@ app.MapGet("/emails/{userId}", (int userId) => {
     return EmailNotification.instances;
 });
 
+db.CreateTable<BookComment>();
 
+
+app.MapGet("/comments", () => {
+    return db.Query<BookComment>("select * from BookComment");
+});
+
+
+app.MapGet("/comments/{bookId}", (int bookId) => {
+    return db.Query<BookComment>("select * from BookComment where id  = ?", bookId);
+});
+
+app.MapGet("/comment/{bookId}/{userId}/{comment}", (int bookId, int userId, string comment) => {
+    var user = users.FirstOrDefault(u => u.Id == userId);
+    var book = Book.instances.FirstOrDefault(b => b.Id == bookId);
+    if (book == null || user == null) {
+        return Results.NotFound();
+    }
+    var createdComment = new BookComment{BookId = bookId, UserId = userId, Comment = comment};
+    return Results.Created($"/comment/{bookId}/{userId}/{comment}", createdComment);
+});
+
+app.MapGet("/user/create/{name}/{email}", (string name, string email) => {
+    var newUser = new User{Name=name, Email=email};
+    db.Insert(newUser);
+    return newUser;
+});
 
 
 
 app.Urls.Add("http://localhost:3030/");
 
+db.CreateTable<Book>();
+
 app.Run();
+
+
 
 
 
@@ -161,14 +233,6 @@ class EmailNotification{
     public bool Sent { get; set; } = false;
 }
 
-class User
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-
-}
-
 
 
 
@@ -179,9 +243,15 @@ class Book
     //so that way new categories we'll get a `New` tag 
     public static List<(string category, DateTime creationDate, List<User> subscribers)> categories = new List<(string category, DateTime creationDate, List<User> subscribers)>();
     public static List<Book> instances = new List<Book>();  
+    [PrimaryKey, AutoIncrement]
     public int Id { get; set; } = 0;
     public string Title { get; set; } = string.Empty;
+    // [Ignore]
+    public int? CurrentHolderId {get {if (CurrentHolder != null) {return CurrentHolder!.Id;} else {return 0;} } 
+        set { }}
+    [Ignore]
     public User? CurrentHolder { get; set; }
+    [Ignore]
     public List<User> WaitList { get; set; } = new List<User>();
     public DateTime LastBorrow { get; set; } = DateTime.Now;
     public string Category { get; set; } = string.Empty;
@@ -191,9 +261,10 @@ class Book
     public Book()
     {
         Id = Book.instances.Count;
+        Book.instances.Add(this);
         if (!Book.categories.Any(c => c.category == Category))
         {
-            Book.categories.Add((Category, DateTime.Now));
+            Book.categories.Add((Category, DateTime.Now, new List<User>()));
         } else {
             Book.categories.FirstOrDefault(c => c.category == Category).subscribers.ForEach(subscriber => EmailNotification.instances.Add(new EmailNotification{
                 To = subscriber.Email,
@@ -204,15 +275,35 @@ class Book
     }
 
     static Book() {
-        Console.WriteLine("Initializing books class");
-     Book.instances = new List<Book>{
-        new Book{Title = "the queen of persia", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
-        new Book{Title = "the golden crown", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
-        new Book{Title = "the secret of the golden crown", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
-        new Book{Title = "the secret of the pirate", CurrentHolder = null, WaitList = new List<User>(), Category = "history"},
-        new Book{Title = "the lost treasure", CurrentHolder = null, WaitList = new List<User>(), Category = "adventure"},
-    };
-   
+        new Book{Title = "the queen of persia", CurrentHolder = null, WaitList = new List<User>(), Category = "history"};
+        new Book{Title = "the golden crown", CurrentHolder = null, WaitList = new List<User>(), Category = "history"};
+        new Book{Title = "the secret of the golden crown", CurrentHolder = null, WaitList = new List<User>(), Category = "history"};
+        new Book{Title = "the secret of the pirate", CurrentHolder = null, WaitList = new List<User>(), Category = "history"};
+        new Book{Title = "the lost treasure", CurrentHolder = null, WaitList = new List<User>(), Category = "adventure"};
     }
 }
 
+
+class User
+{
+    [PrimaryKey, AutoIncrement]
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+
+}
+
+
+class BookComment{
+    [PrimaryKey, AutoIncrement]
+    public int Id { get; set; } = 0;
+    public int BookId { get; set; }
+    public int UserId { get; set; }
+    public string Comment { get; set; } = string.Empty;
+    // public BookComment() {
+    //     BookComment.instances.Add(this);
+    //     Id = BookComment.instances.Count;
+    // }
+    
+}
+        
