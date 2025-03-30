@@ -1,0 +1,22 @@
+/* .book-card {
+  opacity: 0;
+  transform: translateY(20px); 
+  transition: opacity 0.3s ease, transform 0.3s ease;
+} */
+
+
+@keyframes pop-in {
+  from{
+
+    background-color: rgb(157, 156, 156);
+  }
+  50%{
+    transform: translateY(-10px);
+    /* opacity: .8; */
+  }
+  
+}
+
+.pop-in {
+  animation: pop-in 1s;
+}

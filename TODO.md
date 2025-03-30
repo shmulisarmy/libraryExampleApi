@@ -6,12 +6,16 @@ Project Description
 
 ### Todo
 
-- [ ] jwt  
 
 ### In Progress
 
 
 ### Done ✓
 
+- [x] sql joins using linq  
+- [x] encription (for jwt authorization)  
+- [x] chronological caching  
+- [x] send emails  
+- [x] jwt  
 - [x] sqlite connection  
 

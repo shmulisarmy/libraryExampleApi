@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/shmuli/repositories/Terinla/Terinla.csproj": {}
+    "/Users/shmuli/repositories/libraryExampleApi/Terinla.csproj": {}
   },
   "projects": {
-    "/Users/shmuli/repositories/Terinla/Terinla.csproj": {
+    "/Users/shmuli/repositories/libraryExampleApi/Terinla.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/shmuli/repositories/Terinla/Terinla.csproj",
+        "projectUniqueName": "/Users/shmuli/repositories/libraryExampleApi/Terinla.csproj",
         "projectName": "Terinla",
-        "projectPath": "/Users/shmuli/repositories/Terinla/Terinla.csproj",
+        "projectPath": "/Users/shmuli/repositories/libraryExampleApi/Terinla.csproj",
         "packagesPath": "/Users/shmuli/.nuget/packages/",
-        "outputPath": "/Users/shmuli/repositories/Terinla/obj/",
+        "outputPath": "/Users/shmuli/repositories/libraryExampleApi/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/shmuli/.nuget/NuGet/NuGet.Config"
@@ -45,6 +45,24 @@
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[8.0.8, )"
+            },
+            "Microsoft.EntityFrameworkCore.Sqlite": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
+            "Microsoft.EntityFrameworkCore.Tools": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
+            "Microsoft.Extensions.Configuration.Json": {
+              "target": "Package",
+              "version": "[9.0.3, )"
             },
             "Microsoft.IdentityModel.Tokens": {
               "target": "Package",
